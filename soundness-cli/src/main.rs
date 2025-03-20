@@ -206,14 +206,14 @@ fn generate_key_pair(name: &str) -> Result<()> {
     println!("{}", mnemonic_string);
 
     // Get password for secret key encryption
-    let password = prompt_password("\nEnter password for secret key: ")
-        .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
-    let confirm_password = prompt_password("Confirm password: ")
-        .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
+    let passwd_path = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Failed to determine home directory"))?
+        .join(".soundness/passwd");
 
-    if password != confirm_password {
-        anyhow::bail!("Passwords do not match");
-    }
+    let password = fs::read_to_string(&passwd_path)
+        .with_context(|| format!("Failed to read password file: {}", passwd_path.display()))?
+        .trim()
+        .to_string();
 
     // Encrypt the secret key
     let encrypted_secret = encrypt_secret_key(&secret_key_bytes, &password)?;
@@ -283,8 +283,14 @@ fn sign_payload(payload: &[u8], key_name: &str) -> Result<Vec<u8>> {
             stored_password.clone()
         } else {
             // If no password is stored, prompt for it
-            let new_password = prompt_password("Enter password to decrypt the secret key: ")
-                .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
+            let passwd_path = dirs::home_dir()
+                .ok_or_else(|| anyhow::anyhow!("Failed to determine home directory"))?
+                .join(".soundness/passwd");
+        
+            let new_password = fs::read_to_string(&passwd_path)
+                .with_context(|| format!("Failed to read password file: {}", passwd_path.display()))?
+                .trim()
+                .to_string();
 
             // Try to decrypt with the password to verify it's correct
             if let Err(e) = decrypt_secret_key(encrypted_secret, &new_password) {
@@ -334,8 +340,14 @@ fn export_key(name: &str) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("Secret key not found for '{}'", name))?;
 
     // Prompt for password
-    let password = prompt_password("Enter password to decrypt the secret key: ")
-        .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
+    let passwd_path = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Failed to determine home directory"))?
+        .join(".soundness/passwd");
+
+    let password = fs::read_to_string(&passwd_path)
+        .with_context(|| format!("Failed to read password file: {}", passwd_path.display()))?
+        .trim()
+        .to_string();
 
     // Decrypt the secret key with better error handling
     let secret_key_bytes = match decrypt_secret_key(encrypted_secret, &password) {
@@ -387,13 +399,17 @@ fn import_key(name: &str) -> Result<()> {
     let public_key_string = BASE64.encode(&public_key_bytes);
 
     // Get password for secret key encryption
-    let password = prompt_password("\nEnter password to encrypt the secret key: ")
-        .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
-    let confirm_password = prompt_password("Confirm password: ")
-        .map_err(|e| anyhow::anyhow!("Failed to read password: {}", e))?;
+    let passwd_path = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Failed to determine home directory"))?
+        .join(".soundness/passwd");
 
-    if password != confirm_password {
-        anyhow::bail!("Passwords do not match");
+    let password = fs::read_to_string(&passwd_path)
+        .with_context(|| format!("Failed to read password file: {}", passwd_path.display()))?
+        .trim()
+        .to_string();
+
+    if password.is_empty() {
+        anyhow::bail!("Password file is empty");
     }
 
     // Encrypt the secret key
