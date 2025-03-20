@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 
 # Version information
 VERSION="0.1.0"
-REPO="soundnesslabs/soundness-layer"
+REPO="Sakura-nee/soundness-layer"
 CLI_BINARY="soundness-cli"
 
 # Installation directories
